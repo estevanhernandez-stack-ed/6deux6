@@ -1,0 +1,12 @@
+{
+  "name": "6deux6",
+  "version": "0.1.0",
+  "description": "The 626 Labs release feed for Discord.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "dry-run": "node src/index.js --dry-run"
+  }
+}
