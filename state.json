@@ -1,35 +1,35 @@
 {
   "vibe-cartographer": {
-    "version": "v1.8.0",
-    "announcedAt": null
+    "version": "v1.10.1",
+    "announcedAt": "2026-07-04T03:13:26.452Z"
   },
   "vibe-doc": {
-    "version": "v0.7.1",
-    "announcedAt": null
+    "version": "v0.8.2",
+    "announcedAt": "2026-07-04T03:13:31.705Z"
   },
   "vibe-keystone": {
-    "version": "v0.1.1",
-    "announcedAt": null
+    "version": "v0.2.1",
+    "announcedAt": "2026-07-04T03:13:37.422Z"
   },
   "thesis-engine": {
-    "version": "v0.2.1",
-    "announcedAt": null
+    "version": "v0.2.3",
+    "announcedAt": "2026-07-04T03:13:38.969Z"
   },
   "vibe-thesis": {
-    "version": "v0.1.1",
-    "announcedAt": null
+    "version": "v0.2.0",
+    "announcedAt": "2026-07-04T03:13:40.515Z"
   },
   "vibe-walk": {
-    "version": "v0.1.0",
-    "announcedAt": null
+    "version": "v0.3.0",
+    "announcedAt": "2026-07-04T03:13:41.551Z"
   },
   "vibe-taker": {
-    "version": "v0.1.1",
-    "announcedAt": null
+    "version": "v0.1.2",
+    "announcedAt": "2026-07-04T03:13:43.606Z"
   },
   "vibe-prompt": {
-    "version": "v0.7.0",
-    "announcedAt": null
+    "version": "v0.7.1",
+    "announcedAt": "2026-07-04T03:13:49.544Z"
   },
   "vibe-lingual": {
     "version": "v0.1.0",
@@ -76,23 +76,23 @@
     "announcedAt": null
   },
   "vibe-iterate": {
-    "version": "v1.2.0",
-    "announcedAt": null
+    "version": "v1.3.0",
+    "announcedAt": "2026-07-04T03:13:29.401Z"
   },
   "vibe-test": {
-    "version": "vibe-test-v0.2.5",
-    "announcedAt": null
+    "version": "vibe-test-v0.3.0",
+    "announcedAt": "2026-07-04T03:13:33.351Z"
   },
   "vibe-sec": {
-    "version": "vibe-sec-v0.8.0",
-    "announcedAt": null
+    "version": "vibe-sec-v0.9.0",
+    "announcedAt": "2026-07-04T03:13:35.550Z"
   },
   "vibe-wrap": {
-    "version": "v0.2.1",
-    "announcedAt": null
+    "version": "v0.3.0",
+    "announcedAt": "2026-07-04T03:13:45.140Z"
   },
   "vibe-insights": {
-    "version": "v0.2.2",
-    "announcedAt": null
+    "version": "v0.3.0",
+    "announcedAt": "2026-07-04T03:13:46.692Z"
   }
 }
