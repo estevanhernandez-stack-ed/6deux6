@@ -1,1 +1,78 @@
-{}
+{
+  "vibe-cartographer": {
+    "version": "v1.8.0",
+    "announcedAt": null
+  },
+  "vibe-doc": {
+    "version": "v0.7.1",
+    "announcedAt": null
+  },
+  "vibe-keystone": {
+    "version": "v0.1.1",
+    "announcedAt": null
+  },
+  "thesis-engine": {
+    "version": "v0.2.1",
+    "announcedAt": null
+  },
+  "vibe-thesis": {
+    "version": "v0.1.1",
+    "announcedAt": null
+  },
+  "vibe-walk": {
+    "version": "v0.1.0",
+    "announcedAt": null
+  },
+  "vibe-taker": {
+    "version": "v0.1.1",
+    "announcedAt": null
+  },
+  "vibe-prompt": {
+    "version": "v0.7.0",
+    "announcedAt": null
+  },
+  "vibe-lingual": {
+    "version": "v0.1.0",
+    "announcedAt": null
+  },
+  "rororo-ur-task": {
+    "version": "v0.5.0",
+    "announcedAt": null
+  },
+  "ur-ocr": {
+    "version": "v0.4.0",
+    "announcedAt": null
+  },
+  "rororo-ur-afk": {
+    "version": "v0.1.1",
+    "announcedAt": null
+  },
+  "mod-launcher-gh": {
+    "version": "v0.9.0",
+    "announcedAt": null
+  },
+  "sanduhr-store": {
+    "version": "3.1.0.0",
+    "announcedAt": null
+  },
+  "rbx15-store": {
+    "version": "4.0.1.0",
+    "announcedAt": null
+  },
+  "rtclickpng-store": {
+    "version": "0.1.1.0",
+    "announcedAt": null
+  },
+  "snapsnip-store": {
+    "version": "0.2.0.0",
+    "announcedAt": null
+  },
+  "rororo-store": {
+    "version": "1.8.0.0",
+    "announcedAt": null
+  },
+  "mod-launcher-store": {
+    "version": "0.9.1.0",
+    "announcedAt": null
+  }
+}
