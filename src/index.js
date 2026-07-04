@@ -34,7 +34,9 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
   }
 
   for (const { target, release } of toAnnounce) {
-    const blurb = await makeBlurb(target, release, voicePrompt, {
+    // The voice writes from release notes; with none (Store releases), stand
+    // down and let the target's curated config blurb carry the embed.
+    const blurb = !release.notes ? null : await makeBlurb(target, release, voicePrompt, {
       apiKey: env.ANTHROPIC_API_KEY,
       model: config.voice.model,
       maxChars: config.voice.maxChars,

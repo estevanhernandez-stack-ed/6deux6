@@ -7,7 +7,12 @@ import { run } from "../src/index.js";
 
 function fakeNet({ discordStatus = 200 } = {}) {
   const posts = [];
+  let anthropicCalls = 0;
   const fetchImpl = async (url, req) => {
+    if (url.includes("api.anthropic.com")) {
+      anthropicCalls++;
+      return new Response(JSON.stringify({ content: [{ type: "text", text: "In-voice blurb." }] }), { status: 200 });
+    }
     if (url.includes("api.github.com")) {
       return new Response(JSON.stringify({ tag_name: "v2.0.0", html_url: "https://gh/r", body: "Big one.", published_at: null }), { status: 200 });
     }
@@ -20,7 +25,7 @@ function fakeNet({ discordStatus = 200 } = {}) {
     }
     throw new Error(`unexpected fetch ${url}`);
   };
-  return { fetchImpl, posts };
+  return { fetchImpl, posts, count: () => anthropicCalls };
 }
 
 async function scaffold(state) {
@@ -68,6 +73,18 @@ test("failed Discord post does NOT advance state", async () => {
   assert.deepEqual(out.failed, ["gh-one"]);
   const state = JSON.parse(await readFile(join(dir, "state.json"), "utf8"));
   assert.equal(state["gh-one"].version, "v1.0.0"); // untouched — retries next run
+});
+
+test("voice runs only for releases with notes; Store targets use config blurbs", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v1.0.0" }, "store-one": { version: "1.0.0.0" } });
+  const { fetchImpl, posts, count } = fakeNet();
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t", ANTHROPIC_API_KEY: "k" }, fetchImpl, rootDir: dir });
+  assert.deepEqual(out.announced.sort(), ["gh-one", "store-one"]);
+  assert.equal(count(), 1); // one call for gh-one (has notes), none for store-one
+  const storePost = posts.map((p) => p.embeds[0]).find((e) => e.title.includes("store-one"));
+  assert.equal(storePost.description, "b"); // the config blurb
+  const ghPost = posts.map((p) => p.embeds[0]).find((e) => e.title.includes("gh-one"));
+  assert.equal(ghPost.description, "In-voice blurb.");
 });
 
 test("dry run posts nothing and writes nothing", async () => {
