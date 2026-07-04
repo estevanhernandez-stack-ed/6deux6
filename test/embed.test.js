@@ -9,6 +9,12 @@ test("displayVersion strips a leading v and one trailing .0 from 4-part versions
   assert.equal(displayVersion("v0.6.0-beta"), "0.6.0-beta");
 });
 
+test("displayVersion strips product-prefixed monorepo-style tags", () => {
+  assert.equal(displayVersion("vibe-sec-v0.9.0"), "0.9.0");
+  assert.equal(displayVersion("vibe-test-v0.3.0"), "0.3.0");
+  assert.equal(displayVersion("release_2.1.0"), "2.1.0");
+});
+
 test("excerpt takes the first meaningful paragraph, skipping markdown headers", () => {
   const notes = "## What's new\n\nThreat-model mode ships. Also fixes the gate exit code.\n\n## Details\nMore.";
   assert.equal(excerpt(notes, 300), "Threat-model mode ships. Also fixes the gate exit code.");

@@ -4,9 +4,12 @@ const FAMILY_COLORS = {
   store: parseInt("8552c2", 16),   // violet — the gradient midpoint
 };
 
-/** Display-only normalization; state always stores the raw version. */
+/** Display-only normalization; state always stores the raw version.
+ * Handles plain (1.2.0), v-prefixed (v1.2.0), product-prefixed monorepo-style
+ * tags (vibe-sec-v0.9.0), and 4-part Store versions (1.8.0.0 → 1.8.0). */
 export function displayVersion(raw) {
-  let v = raw.startsWith("v") ? raw.slice(1) : raw;
+  const m = /^(?:.*?[-_])?v?(\d.*)$/.exec(raw);
+  let v = m ? m[1] : raw;
   const fourPart = /^(\d+\.\d+\.\d+)\.0$/.exec(v);
   if (fourPart) v = fourPart[1];
   return v;
