@@ -74,5 +74,25 @@
   "mod-launcher-store": {
     "version": "0.9.1.0",
     "announcedAt": null
+  },
+  "vibe-iterate": {
+    "version": "v1.2.0",
+    "announcedAt": null
+  },
+  "vibe-test": {
+    "version": "vibe-test-v0.2.5",
+    "announcedAt": null
+  },
+  "vibe-sec": {
+    "version": "vibe-sec-v0.8.0",
+    "announcedAt": null
+  },
+  "vibe-wrap": {
+    "version": "v0.2.1",
+    "announcedAt": null
+  },
+  "vibe-insights": {
+    "version": "v0.2.2",
+    "announcedAt": null
   }
 }
