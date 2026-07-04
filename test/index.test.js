@@ -14,7 +14,7 @@ function fakeNet({ discordStatus = 200 } = {}) {
       return new Response(JSON.stringify({ content: [{ type: "text", text: "In-voice blurb." }] }), { status: 200 });
     }
     if (url.includes("api.github.com")) {
-      return new Response(JSON.stringify({ tag_name: "v2.0.0", html_url: "https://gh/r", body: "Big one.", published_at: null }), { status: 200 });
+      return new Response(JSON.stringify({ tag_name: "v2.0.0", html_url: "https://gh/r", body: "* feat: the big one — full diff-engine rework and cleaner state handling", published_at: null }), { status: 200 });
     }
     if (url.includes("displaycatalog")) {
       return new Response(JSON.stringify({ Products: [{ DisplaySkuAvailabilities: [{ Sku: { Properties: { Packages: [{ PackageFullName: "X_2.0.0.0_x64__h" }] } } }] }] }), { status: 200 });
