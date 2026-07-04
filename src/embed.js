@@ -42,11 +42,13 @@ export function excerpt(notes, maxChars) {
 export function buildEmbed(target, release, blurb) {
   const description =
     blurb ?? excerpt(release.notes, 300) ?? target.blurb ?? "A new version just shipped.";
-  return {
+  const embed = {
     title: `🚀 ${target.id} ${displayVersion(release.version)}`,
     url: release.url,
     description,
     color: FAMILY_COLORS[target.family] ?? FAMILY_COLORS.store,
     footer: { text: `6deux6 · the 626 Labs release feed · ${target.family}` },
   };
+  if (target.iconUrl) embed.thumbnail = { url: target.iconUrl };
+  return embed;
 }

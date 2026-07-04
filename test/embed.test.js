@@ -56,6 +56,14 @@ test("buildEmbed: plugin family, blurb wins over notes excerpt", () => {
   assert.match(e.footer.text, /6deux6 · the 626 Labs release feed · plugin/);
 });
 
+test("buildEmbed: iconUrl becomes the embed thumbnail; absent iconUrl means no thumbnail key", () => {
+  const release = { version: "v1.0.0", url: "https://x", notes: null };
+  const withIcon = buildEmbed({ id: "a", family: "plugin", iconUrl: "https://626labs.dev/i.png" }, release, null);
+  assert.deepEqual(withIcon.thumbnail, { url: "https://626labs.dev/i.png" });
+  const without = buildEmbed({ id: "b", family: "plugin" }, release, null);
+  assert.equal("thumbnail" in without, false);
+});
+
 test("buildEmbed: store target without notes or blurb uses config blurb via release fallthrough", () => {
   const target = { id: "rororo-store", family: "rororo", blurb: "RORORO — the multi-launcher." };
   const release = { version: "1.8.0.0", url: "https://example.com/s", notes: null };
