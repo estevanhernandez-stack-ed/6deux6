@@ -1,6 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeBlurb } from "../src/voice.js";
+import { makeBlurb, isAnnouncement } from "../src/voice.js";
+
+test("isAnnouncement rejects questions and operator-addressed meta output", () => {
+  assert.equal(isAnnouncement("Could you share what changed in v1.10.1?"), false);
+  assert.equal(isAnnouncement("I'd be happy to write that announcement."), false);
+  assert.equal(isAnnouncement("I need the actual release notes content."), false);
+  assert.equal(isAnnouncement("Threat-model mode ships, and the gate exits honest."), true);
+});
+
+test("makeBlurb rejects a clarifying-question response and falls back to null", async () => {
+  const fetchImpl = async () =>
+    new Response(JSON.stringify({ content: [{ type: "text", text: "Could you share what changed? Bug fixes? New features?" }] }), { status: 200 });
+  const out = await makeBlurb({ id: "x", family: "plugin" }, { version: "v1", url: "u", notes: "n" }, "voice", { model: "m", maxChars: 300, apiKey: "k", fetchImpl });
+  assert.equal(out, null);
+});
 
 const target = { id: "vibe-sec", family: "plugin" };
 const release = { version: "v0.6.0", url: "https://x", notes: "Threat-model mode ships." };

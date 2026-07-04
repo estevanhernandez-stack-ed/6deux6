@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { fetchLatestGithub } from "./sources/github.js";
 import { fetchLatestStore } from "./sources/displaycatalog.js";
 import { findNew } from "./diff.js";
-import { buildEmbed } from "./embed.js";
+import { buildEmbed, meaningfulNotes } from "./embed.js";
 import { makeBlurb } from "./voice.js";
 import { postEmbed } from "./discord.js";
 import { loadState, saveState } from "./state.js";
@@ -34,15 +34,18 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
   }
 
   for (const { target, release } of toAnnounce) {
-    // The voice writes from release notes; with none (Store releases), stand
-    // down and let the target's curated config blurb carry the embed.
-    const blurb = !release.notes ? null : await makeBlurb(target, release, voicePrompt, {
+    // The voice writes from real release notes. Boilerplate-only bodies
+    // (bare --generate-notes changelog links) and Store releases have none —
+    // stand down and let the template / config blurb carry the embed.
+    const notes = meaningfulNotes(release.notes);
+    const blurb = !notes ? null : await makeBlurb(target, { ...release, notes }, voicePrompt, {
       apiKey: env.ANTHROPIC_API_KEY,
       model: config.voice.model,
       maxChars: config.voice.maxChars,
       fetchImpl,
     });
-    const embed = buildEmbed(target, release, blurb);
+    const embed = buildEmbed(target, { ...release, notes }, blurb);
+    console.log(`[copy] ${target.id}: ${embed.description}`);
     if (dryRun) {
       console.log(`[dry-run] would post:\n${JSON.stringify(embed, null, 2)}`);
       summary.announced.push(target.id);

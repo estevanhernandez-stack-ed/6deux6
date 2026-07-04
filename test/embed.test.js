@@ -1,6 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { displayVersion, excerpt, buildEmbed } from "../src/embed.js";
+import { displayVersion, excerpt, buildEmbed, meaningfulNotes } from "../src/embed.js";
+
+test("meaningfulNotes rejects bare --generate-notes boilerplate", () => {
+  assert.equal(meaningfulNotes("**Full Changelog**: https://github.com/x/y/compare/v1.0.0...v1.1.0"), null);
+  assert.equal(meaningfulNotes("## What's Changed\n\n**Full Changelog**: https://github.com/x/y/compare/a...b"), null);
+  assert.equal(meaningfulNotes(null), null);
+  assert.equal(meaningfulNotes("tiny"), null);
+});
+
+test("meaningfulNotes keeps real content and strips the boilerplate around it", () => {
+  const body = "## What's Changed\n\n* feat: threat-model mode ships with attack-tree output\n* fix: gate exit code honest on partial failures\n\n**Full Changelog**: https://github.com/x/y/compare/a...b";
+  const out = meaningfulNotes(body);
+  assert.match(out, /threat-model mode/);
+  assert.ok(!out.includes("Full Changelog"));
+});
 
 test("displayVersion strips a leading v and one trailing .0 from 4-part versions", () => {
   assert.equal(displayVersion("v1.2.0"), "1.2.0");
