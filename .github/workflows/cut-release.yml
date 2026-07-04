@@ -1,0 +1,43 @@
+name: cut-release
+# Reusable: cut a GitHub Release with real commit-bullet notes when a tag lands.
+# Caller repos add .github/workflows/release.yml with:
+#   on: { push: { tags: ["v*", "*-v*"] } }
+#   jobs: { release: { uses: estevanhernandez-stack-ed/6deux6/.github/workflows/cut-release.yml@main } }
+# Born 2026-07-04, the day --generate-notes produced 13 empty release bodies
+# and the feed's voice asked the operator questions in public.
+
+on:
+  workflow_call: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cut release with commit-bullet notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release already exists for $TAG — nothing to do"
+            exit 0
+          fi
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="$TAG"; fi
+          NOTES=$(git log --no-merges --format='* %s' $RANGE)
+          if [ -z "$NOTES" ]; then NOTES="* Maintenance release."; fi
+          {
+            echo "## What's new"
+            echo
+            echo "$NOTES"
+            if [ -n "$PREV" ]; then
+              echo
+              echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${TAG}"
+            fi
+          } > /tmp/notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file /tmp/notes.md
