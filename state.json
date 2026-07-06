@@ -76,23 +76,23 @@
     "announcedAt": "2026-07-04T03:19:51.328Z"
   },
   "vibe-iterate": {
-    "version": "v1.3.0",
-    "announcedAt": "2026-07-04T12:32:51.661Z"
+    "version": "v1.4.0",
+    "announcedAt": "2026-07-06T20:45:13.104Z"
   },
   "vibe-test": {
-    "version": "vibe-test-v0.3.0",
-    "announcedAt": "2026-07-04T12:32:53.272Z"
+    "version": "vibe-test-v0.4.0",
+    "announcedAt": "2026-07-06T20:45:16.348Z"
   },
   "vibe-sec": {
-    "version": "vibe-sec-v0.9.0",
-    "announcedAt": "2026-07-04T12:32:53.928Z"
+    "version": "vibe-sec-v0.10.0",
+    "announcedAt": "2026-07-06T20:45:19.334Z"
   },
   "vibe-wrap": {
-    "version": "v0.3.0",
-    "announcedAt": "2026-07-04T12:33:01.431Z"
+    "version": "v0.4.0",
+    "announcedAt": "2026-07-06T20:45:21.967Z"
   },
   "vibe-insights": {
-    "version": "v0.3.0",
-    "announcedAt": "2026-07-04T12:33:02.718Z"
+    "version": "v0.4.0",
+    "announcedAt": "2026-07-06T20:45:23.456Z"
   }
 }
