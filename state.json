@@ -1,7 +1,7 @@
 {
   "vibe-cartographer": {
-    "version": "v1.10.1",
-    "announcedAt": "2026-07-04T12:32:50.574Z"
+    "version": "v1.11.0",
+    "announcedAt": "2026-07-06T22:34:30.286Z"
   },
   "vibe-doc": {
     "version": "v0.8.2",
@@ -24,8 +24,8 @@
     "announcedAt": "2026-07-04T12:32:59.086Z"
   },
   "vibe-taker": {
-    "version": "v0.1.2",
-    "announcedAt": "2026-07-04T12:33:00.541Z"
+    "version": "v0.2.0",
+    "announcedAt": "2026-07-06T22:34:31.245Z"
   },
   "vibe-prompt": {
     "version": "v0.7.1",
@@ -44,8 +44,8 @@
     "announcedAt": null
   },
   "rororo-ur-afk": {
-    "version": "v0.2.0",
-    "announcedAt": "2026-07-06T21:39:16.390Z"
+    "version": "v0.5.0",
+    "announcedAt": "2026-07-06T22:34:32.326Z"
   },
   "mod-launcher-gh": {
     "version": "v0.9.0",
