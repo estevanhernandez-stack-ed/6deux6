@@ -68,12 +68,12 @@
     "announcedAt": "2026-07-04T03:19:50.904Z"
   },
   "rororo-store": {
-    "version": "1.12.0.0",
-    "announcedAt": "2026-08-02T05:11:56.240Z"
+    "version": "1.14.0.0",
+    "announcedAt": "2026-08-03T07:22:14.800Z"
   },
   "mod-launcher-store": {
-    "version": "0.11.2.0",
-    "announcedAt": "2026-08-02T18:27:37.465Z"
+    "version": "0.15.0.0",
+    "announcedAt": "2026-08-03T07:22:15.026Z"
   },
   "vibe-iterate": {
     "version": "v1.4.0",
