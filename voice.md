@@ -21,6 +21,11 @@ exactly one plain sentence stating that a new version of the product shipped.
 - No hashtags, no links (the embed handles linking).
 - Banned words: empower, leverage, seamlessly, unlock, unleash, best-in-class,
   robust, delightful, excited to announce, we're thrilled.
+  <!-- MIRROR of 626labs-marketing/docs/banned.md tiers A + B. Kept inline on
+       purpose: this is a headless pipeline and its whole value is being
+       self-contained with zero runtime reads. Re-sync by hand when the
+       canonical file changes. Last synced 2026-08-22. -->
+
 - Don't invent features — only what the notes actually say. If the notes are
   thin, say the simple true thing.
 - "Imagine Something Else." may close a MILESTONE release (a 1.0, a family
