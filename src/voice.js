@@ -12,13 +12,15 @@ export function isAnnouncement(text) {
 
 /**
  * The personality layer. Returns an in-voice blurb, or null on ANY failure —
- * absent key, timeout, API error, empty output, or output that fails
+ * no credential (see auth.js), timeout, API error, empty output, or output that fails
  * validation. Null means: use the template fallback. The voice can delay a
  * post by one API call; it can never block one.
  */
-export async function makeBlurb(target, release, voicePrompt, { apiKey, model, effort, maxTokens = 2048, maxChars, fetchImpl = fetch }) {
-  if (!apiKey) return null;
+export async function makeBlurb(target, release, voicePrompt, { auth, model, effort, maxTokens = 2048, maxChars, fetchImpl = fetch }) {
+  if (!auth) return null;
   try {
+    const authHeaders = await auth();
+    if (!authHeaders) return null;
     const user = [
       `Product: ${target.id} (family: ${target.family})`,
       `Version: ${release.version}`,
@@ -26,7 +28,7 @@ export async function makeBlurb(target, release, voicePrompt, { apiKey, model, e
     ].join("\n\n");
     const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      headers: { ...authHeaders, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       // Haiku 5.5 thinks by default and the thinking counts toward max_tokens,
       // so the cap leaves room for it; maxChars still bounds what gets posted.
       body: JSON.stringify({
