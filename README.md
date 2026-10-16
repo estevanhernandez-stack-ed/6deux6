@@ -14,8 +14,8 @@ An hourly GitHub Action runs one small Node program (zero dependencies):
 1. Fetch the latest version per watch target — GitHub `releases/latest`
    or the Microsoft Store display catalog.
 2. Diff against `state.json` (committed back after each run).
-3. New version → build a branded embed. If an `ANTHROPIC_API_KEY` secret
-   is present, Claude writes the announcement from the release notes,
+3. New version → build a branded embed. If the workflow can authenticate to
+   the Claude API, Claude writes the announcement from the release notes,
    guided by [voice.md](voice.md); otherwise a template excerpt carries it.
 4. Post to the configured channel. State advances only after Discord
    accepts the message — a failed run retries next hour, and nothing ever
@@ -34,8 +34,19 @@ with the first release *after* adoption.
    need `repo`; `displaycatalog` targets need `productId` (from the app's
    apps.microsoft.com URL).
 4. Reset `state.json` to `{}`.
-5. Repo secrets: `DISCORD_TOKEN` (required). `ANTHROPIC_API_KEY`
-   (optional — enables the LLM voice; without it you get template copy).
+5. Repo secrets: `DISCORD_TOKEN` (required). For the Claude voice
+   (optional; without it you get template copy), either:
+   - an `ANTHROPIC_API_KEY` secret, or
+   - no stored key: [Workload Identity Federation](https://platform.claude.com/docs/en/manage-claude/wif-providers/github-actions).
+     In the Claude Console, Workload identity → Connect workload → GitHub
+     Actions, matching `repo:<you>/<repo>:ref:refs/heads/main` with audience
+     `https://api.anthropic.com`. Then set repo variables
+     `ANTHROPIC_FEDERATION_RULE_ID`, `ANTHROPIC_ORGANIZATION_ID`,
+     `ANTHROPIC_SERVICE_ACCOUNT_ID` and `ANTHROPIC_WORKSPACE_ID`. An API key
+     secret, if present, wins.
+
+   Run the workflow manually with **auth_check** ticked to test the
+   credential without polling or posting.
 6. Replace `voice.md` with your own voice, or keep ours.
 7. Enable the workflow (Actions tab). Done.
 

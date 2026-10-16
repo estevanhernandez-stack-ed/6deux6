@@ -6,6 +6,7 @@ import { fetchLatestStore } from "./sources/displaycatalog.js";
 import { findNew } from "./diff.js";
 import { buildEmbed, meaningfulNotes } from "./embed.js";
 import { makeBlurb } from "./voice.js";
+import { makeAuth } from "./auth.js";
 import { postEmbed } from "./discord.js";
 import { loadState, saveState } from "./state.js";
 
@@ -27,6 +28,7 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
 
   const { toAnnounce, toSeed } = findNew(config.targets, state, fetchedById);
   const summary = { announced: [], seeded: [], failed: [] };
+  const auth = makeAuth(env, fetchImpl);
 
   for (const { target, release } of toSeed) {
     summary.seeded.push(target.id);
@@ -39,8 +41,10 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
     // stand down and let the template / config blurb carry the embed.
     const notes = meaningfulNotes(release.notes);
     const blurb = !notes ? null : await makeBlurb(target, { ...release, notes }, voicePrompt, {
-      apiKey: env.ANTHROPIC_API_KEY,
+      auth,
       model: config.voice.model,
+      effort: config.voice.effort,
+      maxTokens: config.voice.maxTokens,
       maxChars: config.voice.maxChars,
       fetchImpl,
     });

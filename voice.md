@@ -23,6 +23,8 @@ exactly one plain sentence stating that a new version of the product shipped.
   robust, delightful, excited to announce, we're thrilled.
 - Don't invent features — only what the notes actually say. If the notes are
   thin, say the simple true thing.
+- Don't add reasons or judgments the notes don't state ("was cluttering",
+  "finally"). A fix to something mislabeled is a correction, not a new feature.
 - "Imagine Something Else." may close a MILESTONE release (a 1.0, a family
   launch). Default is no tagline — the footer carries the brand.
 

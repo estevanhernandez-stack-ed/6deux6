@@ -2,17 +2,41 @@ name: poll
 on:
   schedule:
     - cron: "7 * * * *"   # hourly at :07 — off the top-of-hour API rush
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      auth_check:
+        description: "Only check the Claude API credential (no polling, no posts)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  id-token: write   # GitHub OIDC token, exchanged for a short-lived Claude API token (src/auth.js)
 
 concurrency:
   group: poll
   cancel-in-progress: false
 
 jobs:
+  auth-check:
+    if: ${{ inputs.auth_check }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check the Claude API credential
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: node scripts/auth-check.js
+
   poll:
+    if: ${{ !inputs.auth_check }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +48,13 @@ jobs:
       - name: Poll and post
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          # The voice authenticates with an ANTHROPIC_API_KEY secret if one exists,
+          # else Workload Identity Federation (no stored key; IDs are repo variables).
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node src/index.js
       - name: Commit state

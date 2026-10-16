@@ -1,6 +1,6 @@
 {
   "channelId": "1522754011915227153",
-  "voice": { "model": "claude-haiku-4-5-20251001", "maxChars": 300 },
+  "voice": { "model": "claude-haiku-5-5", "effort": "medium", "maxTokens": 2048, "maxChars": 300 },
   "targets": [
     { "id": "vibe-cartographer", "source": "github", "repo": "estevanhernandez-stack-ed/vibe-cartographer", "family": "plugin", "iconUrl": "https://626labs.dev/assets/brand/plugins/vibe-cartographer-icon-transparent-512.png" },
     { "id": "vibe-iterate", "source": "github", "repo": "estevanhernandez-stack-ed/vibe-iterate", "family": "plugin", "iconUrl": "https://626labs.dev/assets/brand/plugins/vibe-iterate-icon-transparent-512.png" },
