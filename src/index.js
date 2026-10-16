@@ -41,6 +41,8 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
     const blurb = !notes ? null : await makeBlurb(target, { ...release, notes }, voicePrompt, {
       apiKey: env.ANTHROPIC_API_KEY,
       model: config.voice.model,
+      effort: config.voice.effort,
+      maxTokens: config.voice.maxTokens,
       maxChars: config.voice.maxChars,
       fetchImpl,
     });

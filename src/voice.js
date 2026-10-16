@@ -16,7 +16,7 @@ export function isAnnouncement(text) {
  * validation. Null means: use the template fallback. The voice can delay a
  * post by one API call; it can never block one.
  */
-export async function makeBlurb(target, release, voicePrompt, { apiKey, model, maxChars, fetchImpl = fetch }) {
+export async function makeBlurb(target, release, voicePrompt, { apiKey, model, effort, maxTokens = 2048, maxChars, fetchImpl = fetch }) {
   if (!apiKey) return null;
   try {
     const user = [
@@ -27,14 +27,28 @@ export async function makeBlurb(target, release, voicePrompt, { apiKey, model, m
     const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: 200, system: voicePrompt, messages: [{ role: "user", content: user }] }),
-      signal: AbortSignal.timeout(20000),
+      // Haiku 5.5 thinks by default and the thinking counts toward max_tokens,
+      // so the cap leaves room for it; maxChars still bounds what gets posted.
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        ...(effort ? { output_config: { effort } } : {}),
+        system: voicePrompt,
+        messages: [{ role: "user", content: user }],
+      }),
+      signal: AbortSignal.timeout(45000),
     });
     if (!res.ok) {
       console.error(`[voice] ${target.id}: HTTP ${res.status}`);
       return null;
     }
     const data = await res.json();
+    // A reply cut off at max_tokens or declined by a safety classifier is never
+    // posted half-finished; the template carries the embed instead.
+    if (data?.stop_reason && data.stop_reason !== "end_turn") {
+      console.error(`[voice] ${target.id}: stop_reason ${data.stop_reason}`);
+      return null;
+    }
     const text = data?.content?.find((c) => c.type === "text")?.text?.trim();
     if (!text || !isAnnouncement(text)) {
       if (text) console.error(`[voice] ${target.id}: rejected non-announcement output`);

@@ -18,7 +18,7 @@ test("makeBlurb rejects a clarifying-question response and falls back to null", 
 
 const target = { id: "vibe-sec", family: "plugin" };
 const release = { version: "v0.6.0", url: "https://x", notes: "Threat-model mode ships." };
-const opts = { model: "claude-haiku-4-5-20251001", maxChars: 300 };
+const opts = { model: "claude-haiku-5-5", effort: "medium", maxTokens: 2048, maxChars: 300 };
 
 test("no api key → null, no fetch attempted", async () => {
   const fetchImpl = async () => { throw new Error("should not be called"); };
@@ -34,6 +34,36 @@ test("happy path returns trimmed text", async () => {
   };
   const out = await makeBlurb(target, release, "voice", { ...opts, apiKey: "k", fetchImpl });
   assert.equal(out, "Threat-model mode ships, and the gate exits honest.");
+});
+
+test("request carries the model, effort and a cap with room for thinking", async () => {
+  const fetchImpl = async (url, req) => {
+    const body = JSON.parse(req.body);
+    assert.equal(body.model, "claude-haiku-5-5");
+    assert.deepEqual(body.output_config, { effort: "medium" });
+    assert.equal(body.max_tokens, 2048);
+    assert.equal("temperature" in body, false);
+    return new Response(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "Threat-model mode ships." }] }), { status: 200 });
+  };
+  assert.equal(await makeBlurb(target, release, "voice", { ...opts, apiKey: "k", fetchImpl }), "Threat-model mode ships.");
+});
+
+test("a thinking block ahead of the text is skipped, not posted", async () => {
+  const fetchImpl = async () =>
+    new Response(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "thinking", thinking: "", signature: "s" }, { type: "text", text: "Threat-model mode ships." }] }), { status: 200 });
+  assert.equal(await makeBlurb(target, release, "voice", { ...opts, apiKey: "k", fetchImpl }), "Threat-model mode ships.");
+});
+
+test("a reply cut off at max_tokens → null, never a half sentence", async () => {
+  const fetchImpl = async () =>
+    new Response(JSON.stringify({ stop_reason: "max_tokens", content: [{ type: "text", text: "Threat-model mode ships and the" }] }), { status: 200 });
+  assert.equal(await makeBlurb(target, release, "voice", { ...opts, apiKey: "k", fetchImpl }), null);
+});
+
+test("a refusal → null", async () => {
+  const fetchImpl = async () =>
+    new Response(JSON.stringify({ stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber" }, content: [] }), { status: 200 });
+  assert.equal(await makeBlurb(target, release, "voice", { ...opts, apiKey: "k", fetchImpl }), null);
 });
 
 test("API error → null", async () => {
