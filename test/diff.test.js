@@ -36,3 +36,17 @@ test("target missing from fetched map entirely touches nothing", () => {
   assert.equal(out.toAnnounce.length, 0);
   assert.equal(out.toSeed.length, 0);
 });
+
+test("unknown target with announceOnFirstSeen is announced, not seeded", () => {
+  const eager = { ...target, announceOnFirstSeen: true };
+  const out = findNew([eager], {}, { "vibe-sec": rel("v1.1.0") });
+  assert.equal(out.toAnnounce.length, 1);
+  assert.equal(out.toSeed.length, 0);
+});
+
+test("announceOnFirstSeen changes nothing once the target is known", () => {
+  const eager = { ...target, announceOnFirstSeen: true };
+  const out = findNew([eager], { "vibe-sec": { version: "v1.1.0" } }, { "vibe-sec": rel("v1.1.0") });
+  assert.equal(out.toAnnounce.length, 0);
+  assert.equal(out.toSeed.length, 0);
+});
