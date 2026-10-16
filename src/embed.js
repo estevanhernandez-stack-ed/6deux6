@@ -39,9 +39,12 @@ export function excerpt(notes, maxChars) {
   return flat.length > maxChars ? flat.slice(0, maxChars) + "…" : flat;
 }
 
-export function buildEmbed(target, release, blurb) {
-  const description =
-    blurb ?? excerpt(release.notes, 300) ?? target.blurb ?? "A new version just shipped.";
+export function buildEmbed(target, release, blurb, { firstPost = false } = {}) {
+  // A first post's fallback is the product line: an excerpt of notes nobody
+  // has context for introduces nothing.
+  const description = firstPost
+    ? blurb ?? target.blurb ?? excerpt(release.notes, 300) ?? "A new product just shipped."
+    : blurb ?? excerpt(release.notes, 300) ?? target.blurb ?? "A new version just shipped.";
   const embed = {
     title: `🚀 ${target.id} ${displayVersion(release.version)}`,
     url: release.url,

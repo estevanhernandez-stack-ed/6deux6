@@ -72,3 +72,9 @@ test("buildEmbed: store target without notes or blurb uses config blurb via rele
   assert.equal(e.description, "RORORO — the multi-launcher.");
   assert.equal(e.color, parseInt("f22f89", 16));
 });
+
+test("a first post with no blurb falls back to the product line, not a notes excerpt", () => {
+  const t = { id: "vibe-recall", family: "plugin", blurb: "vibe-recall — check your own repos first." };
+  const e = buildEmbed(t, { version: "v0.1.3", url: "u", notes: "Adds a canary manifest and a LICENSE file to the package." }, null, { firstPost: true });
+  assert.equal(e.description, t.blurb);
+});

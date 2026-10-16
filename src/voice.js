@@ -16,13 +16,17 @@ export function isAnnouncement(text) {
  * validation. Null means: use the template fallback. The voice can delay a
  * post by one API call; it can never block one.
  */
-export async function makeBlurb(target, release, voicePrompt, { auth, model, effort, maxTokens = 2048, maxChars, fetchImpl = fetch }) {
+export async function makeBlurb(target, release, voicePrompt, { auth, model, effort, maxTokens = 2048, maxChars, firstPost = false, fetchImpl = fetch }) {
   if (!auth) return null;
   try {
     const authHeaders = await auth();
     if (!authHeaders) return null;
     const user = [
       `Product: ${target.id} (family: ${target.family})`,
+      ...(firstPost
+        ? [`FIRST POST: this product has never been announced in this channel. ` +
+           `Product line: ${target.blurb ?? "(none)"}`]
+        : []),
       `Version: ${release.version}`,
       `Release notes:\n${release.notes ?? "(none — Store release, no notes published)"}`,
     ].join("\n\n");

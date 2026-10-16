@@ -96,3 +96,54 @@ test("dry run posts nothing and writes nothing", async () => {
   const state = JSON.parse(await readFile(join(dir, "state.json"), "utf8"));
   assert.equal(state["gh-one"].version, "v1.0.0");
 });
+
+async function twinScaffold(state) {
+  const dir = await mkdtemp(join(tmpdir(), "6deux6-"));
+  const config = {
+    channelId: "42",
+    voice: { model: "m", maxChars: 300 },
+    targets: [
+      { id: "app-gh", source: "github", repo: "o/r", family: "store" },
+      { id: "app-store", source: "displaycatalog", productId: "9X", family: "store", blurb: "b", sameAs: "app-gh" },
+    ],
+  };
+  await writeFile(join(dir, "config.json"), JSON.stringify(config));
+  await writeFile(join(dir, "state.json"), JSON.stringify(state));
+  await writeFile(join(dir, "voice.md"), "voice prompt");
+  return dir;
+}
+
+test("sameAs: GitHub and Store shipping one version in one run post once", async () => {
+  // fakeNet serves v2.0.0 on GitHub and 2.0.0.0 on the Store.
+  const dir = await twinScaffold({ "app-gh": { version: "v1.0.0" }, "app-store": { version: "1.0.0.0" } });
+  const { fetchImpl, posts } = fakeNet();
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir });
+  assert.equal(posts.length, 1);
+  assert.deepEqual(out.announced, ["app-gh"]);
+  assert.deepEqual(out.suppressed, ["app-store"]);
+  const state = JSON.parse(await readFile(join(dir, "state.json"), "utf8"));
+  assert.equal(state["app-store"].version, "2.0.0.0");
+  assert.equal(state["app-store"].sameAs, "app-gh");
+});
+
+test("sameAs: a Store release the GitHub twin already posted stays quiet on a later run", async () => {
+  const dir = await twinScaffold({ "app-gh": { version: "v2.0.0" }, "app-store": { version: "1.0.0.0" } });
+  const { fetchImpl, posts } = fakeNet();
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir });
+  assert.equal(posts.length, 0);
+  assert.deepEqual(out.suppressed, ["app-store"]);
+});
+
+test("sameAs: a Store version the twin never had still posts", async () => {
+  const dir = await twinScaffold({ "app-gh": { version: "v1.9.0" }, "app-store": { version: "1.0.0.0" } });
+  const { fetchImpl, posts } = fakeNet();
+  // GitHub moves to v2.0.0 and posts; the Store's 2.0.0.0 matches it and stays quiet.
+  // So make GitHub lag: serve its old version back.
+  const lagging = async (url, req) =>
+    url.includes("api.github.com")
+      ? new Response(JSON.stringify({ tag_name: "v1.9.0", html_url: "https://gh/r", body: null }), { status: 200 })
+      : fetchImpl(url, req);
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl: lagging, rootDir: dir });
+  assert.deepEqual(out.announced, ["app-store"]);
+  assert.equal(posts.length, 1);
+});
