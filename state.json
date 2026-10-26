@@ -36,8 +36,8 @@
     "announcedAt": "2026-10-17T02:27:10.898Z"
   },
   "rororo-ur-task": {
-    "version": "v0.12.0",
-    "announcedAt": "2026-10-25T15:17:21.616Z"
+    "version": "v0.13.0",
+    "announcedAt": "2026-10-26T00:54:02.722Z"
   },
   "ur-ocr": {
     "version": "v0.4.0",
@@ -120,15 +120,15 @@
     "announcedAt": "2026-10-16T23:16:07.256Z"
   },
   "rororo-ur-mcp": {
-    "version": "v0.4.1",
-    "announcedAt": "2026-10-23T19:17:42.542Z"
+    "version": "v0.5.0",
+    "announcedAt": "2026-10-26T00:54:03.142Z"
   },
   "rororo-mac": {
     "version": "v0.8.0",
     "announcedAt": "2026-10-16T23:16:14.554Z"
   },
   "sanduhr-mac": {
-    "version": "v2.31.0-mac",
-    "announcedAt": "2026-10-21T12:30:48.701Z"
+    "version": "v2.32.0-mac",
+    "announcedAt": "2026-10-26T00:54:03.459Z"
   }
 }
