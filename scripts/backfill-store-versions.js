@@ -2,14 +2,20 @@
 // Every Store version this feed ever saw landed in a state.json commit, so the
 // history is the record of when each one was first seen.
 //
-//   node scripts/backfill-store-versions.js            # refuses if the log has rows
-//   node scripts/backfill-store-versions.js --force    # rebuilds it from history
+//   node scripts/backfill-store-versions.js
+//
+// It refuses to run when the log already has rows, and there is no flag to
+// override that. Once the feed is logging live, the log knows more than
+// history does: versions whose post never landed, the true first sighting
+// where history only has the post time, and each row's previousPollAt. A
+// rebuild would throw all of that away. To rebuild anyway, delete the file by
+// hand first.
 //
 // Set GITHUB_TOKEN (or GH_TOKEN) to also fill previousPollAt from the poll
 // workflow's run history; without one the public API's rate limit applies.
 // Never prints the token.
 //
-// Two limits on what history can say:
+// Three limits on what history can say:
 // - announcedAt is when the post landed, a few seconds after the poll saw the
 //   version. If a post failed and went out on a later run, it is that later
 //   time. A version stored with no time takes its commit's time.
@@ -72,7 +78,7 @@ async function previousPollBefore(firstSeenAt, { repository, token }) {
   const created = `${from.toISOString().slice(0, 19)}Z..${to.toISOString().slice(0, 19)}Z`;
   const headers = { Accept: "application/vnd.github+json", "User-Agent": "6deux6" };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const url = `https://api.github.com/repos/${repository}/actions/workflows/poll.yml/runs?status=success&per_page=20&created=${encodeURIComponent(created)}`;
+  const url = `https://api.github.com/repos/${repository}/actions/workflows/poll.yml/runs?status=success&event=schedule&per_page=20&created=${encodeURIComponent(created)}`;
   const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
     console.error(`[backfill] run history for ${firstSeenAt}: HTTP ${res.status}`);
@@ -108,8 +114,8 @@ async function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const logPath = join(root, "store-versions.json");
   const existing = await loadStoreLog(logPath);
-  if (existing.versions.length && !process.argv.includes("--force")) {
-    console.error(`[backfill] ${logPath} already has ${existing.versions.length} rows; pass --force to rebuild it from history`);
+  if (existing.versions.length) {
+    console.error(`[backfill] ${logPath} already has ${existing.versions.length} rows; a rebuild would lose what the live log knows. Delete the file by hand to rebuild.`);
     process.exitCode = 1;
     return;
   }

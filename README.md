@@ -33,7 +33,7 @@ Microsoft Store version the feed has seen, one row per line:
 | --- | --- |
 | `id`, `productId`, `version` | The watch target, its Store product id and the version. |
 | `firstSeenAt` | When a poll first saw the version in the catalog. The poll is hourly, so it went live at some point in the hour before. |
-| `previousPollAt` | When the last successful poll run before that one finished. With `firstSeenAt` it bounds when the version went live. |
+| `previousPollAt` | When the last successful scheduled poll run before that one finished. With `firstSeenAt` it bounds when the version went live. |
 | `baseline` | The version was already live when the feed started watching the product. It says nothing about when it shipped. |
 | `twinRepo` | The GitHub repo that releases the same product, when the target has a `sameAs` twin. |
 
@@ -42,6 +42,10 @@ than every version logged for that product before. It is logged whether or not
 its post went out. The 626 Labs daily brief reads this file to count the days a
 Store update shipped. Rows before the log existed were rebuilt from the git
 history of `state.json` by `scripts/backfill-store-versions.js`.
+
+The log never holds up the feed. If the file cannot be read as a version log,
+the run still posts, leaves the file exactly as it was, and ends red so the
+problem is seen.
 
 ## Run it for your own projects
 

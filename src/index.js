@@ -9,7 +9,7 @@ import { makeBlurb } from "./voice.js";
 import { makeAuth } from "./auth.js";
 import { postEmbed } from "./discord.js";
 import { loadState, saveState } from "./state.js";
-import { fetchPreviousPollAt, loadStoreLog, planStoreRows, saveStoreLog } from "./storelog.js";
+import { belowLogged, fetchPreviousPollAt, loadStoreLog, planStoreRows, saveStoreLog } from "./storelog.js";
 
 export async function run({ dryRun = false, env = process.env, fetchImpl = fetch, rootDir, now = () => new Date() } = {}) {
   const root = rootDir ?? join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,8 +17,17 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
   const voicePrompt = await readFile(join(root, "voice.md"), "utf8");
   const statePath = join(root, "state.json");
   const state = await loadState(statePath);
+  // The store log is a side record. If it cannot be read or written the feed
+  // still posts; the file is left exactly as it was and the run is failed at
+  // the end, so a broken log shows up as a red run and not as lost history.
   const storeLogPath = join(root, "store-versions.json");
-  const storeLog = await loadStoreLog(storeLogPath);
+  let storeLog = null;
+  try {
+    storeLog = await loadStoreLog(storeLogPath);
+  } catch (err) {
+    console.error(`[store-log] unreadable, nothing logged this run: ${err.message}`);
+  }
+  let storeLogFailed = storeLog === null;
 
   // Fetch every target; a failure is a null (skip), never a crash.
   const fetchedById = {};
@@ -32,7 +41,10 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
   // Log every Store version the first time it is seen, before anything below
   // decides whether it gets a post. Planned against state as loaded.
   const seenAt = now().toISOString();
-  const storeRows = planStoreRows({ targets: config.targets, state, fetchedById, log: storeLog, now: seenAt });
+  const storeRows = storeLog ? planStoreRows({ targets: config.targets, state, fetchedById, log: storeLog, now: seenAt }) : [];
+  for (const low of storeLog ? belowLogged({ targets: config.targets, fetchedById, log: storeLog }) : []) {
+    console.log(`[store-log] ${low.id}: catalog shows ${low.version}, below ${low.highest} already logged; not logged`);
+  }
   const seenThisRun = storeRows.filter((row) => !row.baseline && row.firstSeenAt === seenAt);
   if (!dryRun && seenThisRun.length) {
     const previousPollAt = await fetchPreviousPollAt({
@@ -47,11 +59,16 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
   // Saved now, not with state at the end: a post that fails or throws below
   // must not cost the log the hour a version was first seen.
   if (!dryRun && storeRows.length) {
-    await saveStoreLog(storeLogPath, { versions: [...storeLog.versions, ...storeRows] });
+    try {
+      await saveStoreLog(storeLogPath, { versions: [...storeLog.versions, ...storeRows] });
+    } catch (err) {
+      console.error(`[store-log] could not write: ${err.message}`);
+      storeLogFailed = true;
+    }
   }
 
   const { toAnnounce, toSeed } = findNew(config.targets, state, fetchedById);
-  const summary = { announced: [], seeded: [], suppressed: [], failed: [] };
+  const summary = { announced: [], seeded: [], suppressed: [], failed: [], storeLogFailed };
   const auth = makeAuth(env, fetchImpl);
 
   for (const { target, release } of toSeed) {
@@ -116,6 +133,6 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
 if (process.argv[1]?.endsWith("index.js")) {
   const dryRun = process.argv.includes("--dry-run");
   run({ dryRun }).then((s) => {
-    if (s.failed.length) process.exitCode = 1;
+    if (s.failed.length || s.storeLogFailed) process.exitCode = 1;
   });
 }

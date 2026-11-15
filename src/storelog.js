@@ -9,8 +9,8 @@ import { readFile, writeFile } from "node:fs/promises";
  * A row: { id, productId, version, firstSeenAt, previousPollAt?, baseline?, twinRepo? }
  * - firstSeenAt: when a poll first saw the version in the catalog. The poll is
  *   hourly, so the version went live at some point in the hour before it.
- * - previousPollAt: when the last successful poll run before that one
- *   finished. With firstSeenAt it bounds when the version went live. A run
+ * - previousPollAt: when the last successful scheduled poll run before that
+ *   one finished. With firstSeenAt it bounds when the version went live. A run
  *   counts as successful even if that one product's catalog read failed in it,
  *   so the bound is the run's, not the product's.
  * - baseline: the version was already live when this log started watching it,
@@ -22,6 +22,16 @@ import { readFile, writeFile } from "node:fs/promises";
 const ROW_KEYS = ["id", "productId", "version", "firstSeenAt", "previousPollAt", "baseline", "twinRepo"];
 const POLL_WORKFLOW = "poll.yml";
 
+export const isTime = (value) => typeof value === "string" && !Number.isNaN(Date.parse(value));
+
+const isRow = (row) =>
+  row !== null && typeof row === "object" && typeof row.id === "string" && typeof row.version === "string" && isTime(row.firstSeenAt);
+
+/**
+ * A missing file is an empty log. A file that is there but is not a version
+ * log throws: reading it as empty would have the next row overwrite the whole
+ * history, and would turn every watched product back into a baseline.
+ */
 export async function loadStoreLog(path) {
   let text;
   try {
@@ -31,19 +41,19 @@ export async function loadStoreLog(path) {
     throw err;
   }
   const versions = JSON.parse(text)?.versions;
-  return { versions: Array.isArray(versions) ? versions : [] };
+  if (!Array.isArray(versions) || !versions.every(isRow)) throw new Error("not a version log");
+  return { versions };
 }
 
-/** One row per line, so a new version is a one-line diff. */
+/** One row per line, so a new version is a one-line diff. Keys this code does not know are kept. */
 export async function saveStoreLog(path, log) {
-  const lines = log.versions.map(
-    (row) => "    " + JSON.stringify(Object.fromEntries(ROW_KEYS.filter((k) => row[k] !== undefined).map((k) => [k, row[k]]))),
-  );
+  const lines = log.versions.map((row) => {
+    const keys = [...ROW_KEYS, ...Object.keys(row).filter((k) => !ROW_KEYS.includes(k))];
+    return "    " + JSON.stringify(Object.fromEntries(keys.filter((k) => row[k] !== undefined).map((k) => [k, row[k]])));
+  });
   const body = lines.length ? `[\n${lines.join(",\n")}\n  ]` : "[]";
   await writeFile(path, `{\n  "versions": ${body}\n}\n`);
 }
-
-export const isTime = (value) => typeof value === "string" && !Number.isNaN(Date.parse(value));
 
 /** Store versions are four numbers; compares them part by part. */
 export function compareVersions(a, b) {
@@ -85,17 +95,25 @@ export function planStoreRows({ targets, state, fetchedById, log, now }) {
     if (target.source !== "displaycatalog") continue;
     const version = fetchedById[target.id]?.version;
     if (!version) continue;
+    const logged = log.versions.filter((row) => row.id === target.id);
     if (!isHigher(version, highestLogged(log, target.id))) continue;
 
     const row = { id: target.id, productId: target.productId, version, firstSeenAt: now };
     const known = state[target.id];
-    if (!known) {
-      row.baseline = true; // a target this feed has only just started watching
+    if (!known || (!logged.length && known.version === version)) {
+      // Nothing to measure it against: a target this feed has only just
+      // started watching, or a version state already held when a new or lost
+      // log first met it. State's time is when a post last landed, not when
+      // the version went live, so on its own it proves no day.
+      row.baseline = true;
     } else if (known.version === version) {
-      // State saw this version on an earlier run and the log missed it. Take
-      // the time state recorded; without one, when it went live is unknown.
-      if (isTime(known.announcedAt)) row.firstSeenAt = known.announcedAt;
-      else row.baseline = true;
+      // State saw this version on an earlier run and the log missed it (the
+      // gap between a backfill and its merge). Take the time state recorded
+      // when it can be true: after the last row logged, and not in the future.
+      // Otherwise the log's own first sighting is now.
+      const at = Date.parse(known.announcedAt);
+      const lastLogged = Math.max(...logged.map((r) => Date.parse(r.firstSeenAt)));
+      if (isTime(known.announcedAt) && at > lastLogged && at <= Date.parse(now)) row.firstSeenAt = known.announcedAt;
     }
     const twinRepo = twinRepoOf(target, targets);
     if (twinRepo) row.twinRepo = twinRepo;
@@ -105,16 +123,33 @@ export function planStoreRows({ targets, state, fetchedById, log, now }) {
 }
 
 /**
- * When the last successful poll run before this one finished, from the Actions
- * API. Best effort: null outside Actions or on any failure, and a null never
- * holds up the log or the poll.
+ * Pure: targets whose catalog version is below the highest one logged. Nothing
+ * is logged for them, and without a line saying so a wrong high row in the log
+ * would block every later version in silence.
+ */
+export function belowLogged({ targets, fetchedById, log }) {
+  const out = [];
+  for (const target of targets) {
+    if (target.source !== "displaycatalog") continue;
+    const version = fetchedById[target.id]?.version;
+    const highest = highestLogged(log, target.id);
+    if (version && highest !== undefined && compareVersions(version, highest) < 0) out.push({ id: target.id, version, highest });
+  }
+  return out;
+}
+
+/**
+ * When the last successful scheduled poll run before this one finished, from
+ * the Actions API. Scheduled runs only: a manual run can be the credential
+ * check, which succeeds without polling anything. Best effort: null outside
+ * Actions or on any failure, and a null never holds up the log or the poll.
  */
 export async function fetchPreviousPollAt({ repository, runId, token, fetchImpl = fetch } = {}) {
   if (!repository) return null;
   try {
     const headers = { Accept: "application/vnd.github+json", "User-Agent": "6deux6" };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const url = `https://api.github.com/repos/${repository}/actions/workflows/${POLL_WORKFLOW}/runs?status=success&per_page=5`;
+    const url = `https://api.github.com/repos/${repository}/actions/workflows/${POLL_WORKFLOW}/runs?status=success&event=schedule&per_page=5`;
     const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(15000) });
     if (!res.ok) {
       console.error(`[storelog] previous poll: HTTP ${res.status}`);

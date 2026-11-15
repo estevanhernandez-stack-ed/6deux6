@@ -48,10 +48,21 @@ test("a version state already holds is dated from state, not from now", () => {
   assert.deepEqual(rows, [{ id: "solo-store", productId: "9SOLO", version: "1.1.0.0", firstSeenAt: "2026-11-10T15:00:00.000Z" }]);
 });
 
-test("a version state holds with no time is a baseline", () => {
-  for (const announcedAt of [null, "dry-run", undefined]) {
+test("a version state already held when the log first meets the product is a baseline", () => {
+  // A lost or brand-new log beside a populated state.json. announcedAt is when
+  // a post last landed, not when the version went live, so it proves no day.
+  for (const announcedAt of [null, "dry-run", undefined, "2026-11-10T15:00:00.000Z"]) {
     const rows = plan({ state: { "solo-store": { version: "1.1.0.0", announcedAt } }, versions: { "solo-store": "1.1.0.0" } });
     assert.deepEqual(rows, [{ id: "solo-store", productId: "9SOLO", version: "1.1.0.0", firstSeenAt: NOW, baseline: true }]);
+  }
+});
+
+test("a version state holds with no usable time is a ship dated now, once the log has an earlier row", () => {
+  const earlier = [{ id: "solo-store", productId: "9SOLO", version: "1.0.0.0", firstSeenAt: "2026-11-05T00:00:00.000Z" }];
+  // No time, a time before the row already logged, and a time in the future.
+  for (const announcedAt of [null, "dry-run", "2026-11-01T00:00:00.000Z", "2026-12-25T00:00:00.000Z"]) {
+    const rows = plan({ state: { "solo-store": { version: "1.1.0.0", announcedAt } }, versions: { "solo-store": "1.1.0.0" }, rows: earlier });
+    assert.deepEqual(rows, [{ id: "solo-store", productId: "9SOLO", version: "1.1.0.0", firstSeenAt: NOW }]);
   }
 });
 
@@ -90,11 +101,30 @@ test("versions compare by number, part by part", () => {
   assert.ok(compareVersions("3.9.1.0", "4.0.0.0") < 0);
 });
 
-test("a missing or empty log file reads as an empty log", async () => {
+test("a missing log file reads as an empty log", async () => {
   const dir = await mkdtemp(join(tmpdir(), "6deux6-log-"));
   assert.deepEqual(await loadStoreLog(join(dir, "nope.json")), { versions: [] });
-  await writeFile(join(dir, "odd.json"), JSON.stringify({ versions: "x" }));
-  assert.deepEqual(await loadStoreLog(join(dir, "odd.json")), { versions: [] });
+});
+
+test("a log file that is not a version log is an error, never an empty log", async () => {
+  // Reading it as empty would have the next row overwrite the whole history.
+  const dir = await mkdtemp(join(tmpdir(), "6deux6-log-"));
+  const bad = ["", "[]", "null", '{"versions":"x"}', '{"version":[]}', '{"versions":[null]}', '{"versions":[{"id":"a"}]}'];
+  for (const [i, text] of bad.entries()) {
+    const path = join(dir, `bad-${i}.json`);
+    await writeFile(path, text);
+    await assert.rejects(loadStoreLog(path), `should reject ${JSON.stringify(text)}`);
+  }
+});
+
+test("a key the log does not know is kept when the file is rewritten", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "6deux6-log-"));
+  const path = join(dir, "store-versions.json");
+  await saveStoreLog(path, { versions: [{ note: "by hand", id: "solo-store", productId: "9SOLO", version: "1.0.0.0", firstSeenAt: NOW }] });
+  assert.equal(
+    await readFile(path, "utf8"),
+    `{\n  "versions": [\n    {"id":"solo-store","productId":"9SOLO","version":"1.0.0.0","firstSeenAt":"${NOW}","note":"by hand"}\n  ]\n}\n`,
+  );
 });
 
 test("the log is written one row per line, in a fixed key order, and reads back", async () => {
@@ -138,14 +168,23 @@ test("the previous poll is the newest successful run that is not this one", asyn
   ]);
   const at = await fetchPreviousPollAt({ repository: "o/6deux6", runId: "30", token: "t", fetchImpl });
   assert.equal(at, "2026-11-13T05:13:30Z");
-  assert.match(runsResponse.last.url, /repos\/o\/6deux6\/actions\/workflows\/poll\.yml\/runs\?status=success/);
+  assert.match(runsResponse.last.url, /repos\/o\/6deux6\/actions\/workflows\/poll\.yml\/runs\?/);
+  // Scheduled runs only: a manual run can be the credential check, which polls nothing.
+  assert.match(runsResponse.last.url, /[?&]status=success(&|$)/);
+  assert.match(runsResponse.last.url, /[?&]event=schedule(&|$)/);
   assert.equal(runsResponse.last.req.headers.Authorization, "Bearer t");
 });
 
-test("the previous poll is unknown outside Actions, on an HTTP error, or when the call throws", async () => {
-  const never = async () => { throw new Error("should not be called"); };
-  assert.equal(await fetchPreviousPollAt({ repository: undefined, runId: "1", fetchImpl: never }), null);
+test("outside Actions the previous poll is unknown and nothing is called", async () => {
+  let calls = 0;
+  const counting = async () => { calls++; return new Response("{}", { status: 200 }); };
+  assert.equal(await fetchPreviousPollAt({ repository: undefined, runId: "1", fetchImpl: counting }), null);
+  assert.equal(calls, 0);
+});
+
+test("the previous poll is unknown on an HTTP error, an empty list, or a call that throws", async () => {
+  const throwing = async () => { throw new Error("network down"); };
   assert.equal(await fetchPreviousPollAt({ repository: "o/r", runId: "1", fetchImpl: runsResponse([], 403) }), null);
   assert.equal(await fetchPreviousPollAt({ repository: "o/r", runId: "1", fetchImpl: runsResponse([]) }), null);
-  assert.equal(await fetchPreviousPollAt({ repository: "o/r", runId: "1", fetchImpl: never }), null);
+  assert.equal(await fetchPreviousPollAt({ repository: "o/r", runId: "1", fetchImpl: throwing }), null);
 });

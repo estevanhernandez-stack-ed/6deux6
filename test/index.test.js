@@ -215,3 +215,34 @@ test("store log: a dry run writes no log", async () => {
   await assert.rejects(readFile(join(dir, "store-versions.json"), "utf8"), { code: "ENOENT" });
   assert.equal(runsCount(), 0);
 });
+
+test("store log: an unreadable log does not stop the feed, is left as it was, and fails the run", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v1.0.0" }, "store-one": { version: "1.0.0.0" } });
+  await writeFile(join(dir, "store-versions.json"), "");
+  const { fetchImpl, posts } = fakeNet();
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir });
+  assert.equal(posts.length, 2); // both announcements still went out
+  assert.equal(out.storeLogFailed, true);
+  assert.equal(await readFile(join(dir, "store-versions.json"), "utf8"), "");
+  const state = JSON.parse(await readFile(join(dir, "state.json"), "utf8"));
+  assert.equal(state["store-one"].version, "2.0.0.0");
+});
+
+test("store log: a healthy run reports the log as fine", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v2.0.0" }, "store-one": { version: "1.0.0.0" } });
+  const { fetchImpl } = fakeNet();
+  const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir });
+  assert.equal(out.storeLogFailed, false);
+});
+
+test("store log: a version state saw before the log did takes the time state recorded", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v2.0.0" }, "store-one": { version: "2.0.0.0", announcedAt: "2026-11-10T15:00:00.000Z" } });
+  await writeFile(
+    join(dir, "store-versions.json"),
+    '{"versions":[{"id":"store-one","productId":"9X","version":"1.0.0.0","firstSeenAt":"2026-11-01T00:00:00.000Z","baseline":true}]}',
+  );
+  const { fetchImpl, runsCount } = fakeNet();
+  await run({ dryRun: false, env: actionsEnv, fetchImpl, rootDir: dir, now: at });
+  assert.deepEqual((await readLog(dir))[1], { id: "store-one", productId: "9X", version: "2.0.0.0", firstSeenAt: "2026-11-10T15:00:00.000Z" });
+  assert.equal(runsCount(), 0); // the poll before an old sighting is not this run's previous poll
+});
