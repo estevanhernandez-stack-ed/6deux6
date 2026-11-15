@@ -9,13 +9,16 @@ import { makeBlurb } from "./voice.js";
 import { makeAuth } from "./auth.js";
 import { postEmbed } from "./discord.js";
 import { loadState, saveState } from "./state.js";
+import { fetchPreviousPollAt, loadStoreLog, planStoreRows, saveStoreLog } from "./storelog.js";
 
-export async function run({ dryRun = false, env = process.env, fetchImpl = fetch, rootDir } = {}) {
+export async function run({ dryRun = false, env = process.env, fetchImpl = fetch, rootDir, now = () => new Date() } = {}) {
   const root = rootDir ?? join(dirname(fileURLToPath(import.meta.url)), "..");
   const config = JSON.parse(await readFile(join(root, "config.json"), "utf8"));
   const voicePrompt = await readFile(join(root, "voice.md"), "utf8");
   const statePath = join(root, "state.json");
   const state = await loadState(statePath);
+  const storeLogPath = join(root, "store-versions.json");
+  const storeLog = await loadStoreLog(storeLogPath);
 
   // Fetch every target; a failure is a null (skip), never a crash.
   const fetchedById = {};
@@ -24,6 +27,27 @@ export async function run({ dryRun = false, env = process.env, fetchImpl = fetch
       target.source === "github"
         ? await fetchLatestGithub(target, { token: env.GITHUB_TOKEN, fetchImpl })
         : await fetchLatestStore(target, { fetchImpl });
+  }
+
+  // Log every Store version the first time it is seen, before anything below
+  // decides whether it gets a post. Planned against state as loaded.
+  const seenAt = now().toISOString();
+  const storeRows = planStoreRows({ targets: config.targets, state, fetchedById, log: storeLog, now: seenAt });
+  const seenThisRun = storeRows.filter((row) => !row.baseline && row.firstSeenAt === seenAt);
+  if (!dryRun && seenThisRun.length) {
+    const previousPollAt = await fetchPreviousPollAt({
+      repository: env.GITHUB_REPOSITORY,
+      runId: env.GITHUB_RUN_ID,
+      token: env.GITHUB_TOKEN,
+      fetchImpl,
+    });
+    if (previousPollAt) for (const row of seenThisRun) row.previousPollAt = previousPollAt;
+  }
+  for (const row of storeRows) console.log(`[store-log] ${row.id} ${row.version}${row.baseline ? " (baseline)" : ""}`);
+  // Saved now, not with state at the end: a post that fails or throws below
+  // must not cost the log the hour a version was first seen.
+  if (!dryRun && storeRows.length) {
+    await saveStoreLog(storeLogPath, { versions: [...storeLog.versions, ...storeRows] });
   }
 
   const { toAnnounce, toSeed } = findNew(config.targets, state, fetchedById);

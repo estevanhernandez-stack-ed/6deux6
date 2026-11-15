@@ -8,10 +8,15 @@ import { run } from "../src/index.js";
 function fakeNet({ discordStatus = 200 } = {}) {
   const posts = [];
   let anthropicCalls = 0;
+  let runsCalls = 0;
   const fetchImpl = async (url, req) => {
     if (url.includes("api.anthropic.com")) {
       anthropicCalls++;
       return new Response(JSON.stringify({ content: [{ type: "text", text: "In-voice blurb." }] }), { status: 200 });
+    }
+    if (url.includes("/actions/workflows/")) {
+      runsCalls++;
+      return new Response(JSON.stringify({ workflow_runs: [{ id: 7, updated_at: "2026-11-13T05:13:30Z" }] }), { status: 200 });
     }
     if (url.includes("api.github.com")) {
       return new Response(JSON.stringify({ tag_name: "v2.0.0", html_url: "https://gh/r", body: "* feat: the big one — full diff-engine rework and cleaner state handling", published_at: null }), { status: 200 });
@@ -25,7 +30,7 @@ function fakeNet({ discordStatus = 200 } = {}) {
     }
     throw new Error(`unexpected fetch ${url}`);
   };
-  return { fetchImpl, posts, count: () => anthropicCalls };
+  return { fetchImpl, posts, count: () => anthropicCalls, runsCount: () => runsCalls };
 }
 
 async function scaffold(state) {
@@ -146,4 +151,67 @@ test("sameAs: a Store version the twin never had still posts", async () => {
   const out = await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl: lagging, rootDir: dir });
   assert.deepEqual(out.announced, ["app-store"]);
   assert.equal(posts.length, 1);
+});
+
+const readLog = async (dir) => JSON.parse(await readFile(join(dir, "store-versions.json"), "utf8")).versions;
+const actionsEnv = { DISCORD_TOKEN: "t", GITHUB_REPOSITORY: "o/6deux6", GITHUB_RUN_ID: "8", GITHUB_TOKEN: "g" };
+const at = () => new Date("2026-11-13T06:21:58.069Z");
+
+test("store log: a new Store version is logged with when it was seen and the poll before it", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v2.0.0" }, "store-one": { version: "1.0.0.0" } });
+  const { fetchImpl } = fakeNet();
+  await run({ dryRun: false, env: actionsEnv, fetchImpl, rootDir: dir, now: at });
+  assert.deepEqual(await readLog(dir), [
+    { id: "store-one", productId: "9X", version: "2.0.0.0", firstSeenAt: "2026-11-13T06:21:58.069Z", previousPollAt: "2026-11-13T05:13:30Z" },
+  ]);
+});
+
+test("store log: a failed post still logs the version, and the retry does not log it twice", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v2.0.0" }, "store-one": { version: "1.0.0.0" } });
+  const { fetchImpl } = fakeNet({ discordStatus: 403 });
+  await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir, now: at });
+  await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir });
+  const state = JSON.parse(await readFile(join(dir, "state.json"), "utf8"));
+  assert.equal(state["store-one"].version, "1.0.0.0"); // the post is still owed
+  assert.deepEqual(await readLog(dir), [
+    { id: "store-one", productId: "9X", version: "2.0.0.0", firstSeenAt: "2026-11-13T06:21:58.069Z" },
+  ]);
+});
+
+test("store log: a Store version suppressed as a twin is still logged, with the twin's repo", async () => {
+  const dir = await twinScaffold({ "app-gh": { version: "v2.0.0" }, "app-store": { version: "1.0.0.0" } });
+  const { fetchImpl, posts } = fakeNet();
+  await run({ dryRun: false, env: { DISCORD_TOKEN: "t" }, fetchImpl, rootDir: dir, now: at });
+  assert.equal(posts.length, 0);
+  assert.deepEqual(await readLog(dir), [
+    { id: "app-store", productId: "9X", version: "2.0.0.0", firstSeenAt: "2026-11-13T06:21:58.069Z", twinRepo: "o/r" },
+  ]);
+});
+
+test("store log: a cold start logs baselines and asks nothing of the Actions API", async () => {
+  const dir = await scaffold({});
+  const { fetchImpl, runsCount } = fakeNet();
+  await run({ dryRun: false, env: actionsEnv, fetchImpl, rootDir: dir, now: at });
+  assert.deepEqual(await readLog(dir), [
+    { id: "store-one", productId: "9X", version: "2.0.0.0", firstSeenAt: "2026-11-13T06:21:58.069Z", baseline: true },
+  ]);
+  assert.equal(runsCount(), 0);
+});
+
+test("store log: a run with no Store change leaves the file alone", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v1.0.0" }, "store-one": { version: "2.0.0.0" } });
+  const before = '{"versions":[{"id":"store-one","productId":"9X","version":"2.0.0.0","firstSeenAt":"2026-11-01T00:00:00.000Z"}]}';
+  await writeFile(join(dir, "store-versions.json"), before);
+  const { fetchImpl, runsCount } = fakeNet();
+  await run({ dryRun: false, env: actionsEnv, fetchImpl, rootDir: dir });
+  assert.equal(await readFile(join(dir, "store-versions.json"), "utf8"), before);
+  assert.equal(runsCount(), 0);
+});
+
+test("store log: a dry run writes no log", async () => {
+  const dir = await scaffold({ "gh-one": { version: "v2.0.0" }, "store-one": { version: "1.0.0.0" } });
+  const { fetchImpl, runsCount } = fakeNet();
+  await run({ dryRun: true, env: actionsEnv, fetchImpl, rootDir: dir });
+  await assert.rejects(readFile(join(dir, "store-versions.json"), "utf8"), { code: "ENOENT" });
+  assert.equal(runsCount(), 0);
 });

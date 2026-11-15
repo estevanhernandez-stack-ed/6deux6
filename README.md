@@ -24,6 +24,25 @@ An hourly GitHub Action runs one small Node program (zero dependencies):
 New targets (and brand-new installs) seed silently: announcements start
 with the first release *after* adoption.
 
+### The Store version log
+
+[store-versions.json](store-versions.json) is an append-only record of every
+Microsoft Store version the feed has seen, one row per line:
+
+| Field | Meaning |
+| --- | --- |
+| `id`, `productId`, `version` | The watch target, its Store product id and the version. |
+| `firstSeenAt` | When a poll first saw the version in the catalog. The poll is hourly, so it went live at some point in the hour before. |
+| `previousPollAt` | When the last successful poll run before that one finished. With `firstSeenAt` it bounds when the version went live. |
+| `baseline` | The version was already live when the feed started watching the product. It says nothing about when it shipped. |
+| `twinRepo` | The GitHub repo that releases the same product, when the target has a `sameAs` twin. |
+
+A version is logged once, the first time it is seen, and only if it is higher
+than every version logged for that product before. It is logged whether or not
+its post went out. The 626 Labs daily brief reads this file to count the days a
+Store update shipped. Rows before the log existed were rebuilt from the git
+history of `state.json` by `scripts/backfill-store-versions.js`.
+
 ## Run it for your own projects
 
 1. Fork this repo.
@@ -33,7 +52,8 @@ with the first release *after* adoption.
 3. Edit `config.json`: your channel id, your targets. `github` targets
    need `repo`; `displaycatalog` targets need `productId` (from the app's
    apps.microsoft.com URL).
-4. Reset `state.json` to `{}`.
+4. Reset `state.json` to `{}` and delete `store-versions.json`; the first
+   run starts a new one.
 5. Repo secrets: `DISCORD_TOKEN` (required). For the Claude voice
    (optional; without it you get template copy), either:
    - an `ANTHROPIC_API_KEY` secret, or
