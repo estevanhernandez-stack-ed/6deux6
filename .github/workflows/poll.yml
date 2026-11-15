@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: read     # the store log reads when the previous poll run finished (src/storelog.js)
   id-token: write   # GitHub OIDC token, exchanged for a short-lived Claude API token (src/auth.js)
 
 concurrency:
@@ -58,10 +59,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node src/index.js
       - name: Commit state
+        # Runs even when a post failed. state.json only ever advances for a post
+        # Discord accepted, so committing a partly failed run is what keeps the
+        # posts that did land from going out again next hour, and it keeps the
+        # store log's first sighting of a version.
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "6deux6"
           git config user.email "actions@users.noreply.github.com"
           git add state.json
+          if [ -f store-versions.json ]; then git add store-versions.json; fi
           git diff --cached --quiet && exit 0
           git commit -m "chore: state $(date -u +%FT%TZ)"
           for i in 1 2 3; do
